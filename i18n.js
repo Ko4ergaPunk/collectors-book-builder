@@ -116,7 +116,9 @@
       "ui.theme": "Тема",
       "theme.dark": "Тёмная",
       "theme.light": "Светлая",
-      "theme.toggle": "Переключить тему"
+      "theme.toggle": "Переключить тему",
+      "header.hide": "Скрыть панель",
+      "header.show": "Показать панель"
     },
     en: {
       "app.title": "Collector's Book Builder",
@@ -232,7 +234,9 @@
       "ui.theme": "Theme",
       "theme.dark": "Dark",
       "theme.light": "Light",
-      "theme.toggle": "Toggle theme"
+      "theme.toggle": "Toggle theme",
+      "header.hide": "Hide panel",
+      "header.show": "Show panel"
     }
   };
 

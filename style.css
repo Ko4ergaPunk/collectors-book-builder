@@ -139,6 +139,14 @@ html.theme-instant *::after{
 .control{display:flex;align-items:center;gap:6px}
 .control__label{color:var(--muted);font-size:12px}
 
+/* collapsible topbar (mobile) */
+.header-toggle{display:none;align-items:center;justify-content:center;padding:6px 8px}
+.header-restore{
+  display:none;position:fixed;top:0;right:10px;z-index:180;
+  align-items:center;justify-content:center;padding:6px 8px;
+  border-radius:0 0 8px 8px;box-shadow:var(--shadow-md);
+}
+
 .theme-toggle{
   display:inline-flex;align-items:center;justify-content:center;
   width:38px;height:38px;padding:0;
@@ -412,9 +420,13 @@ select.input{cursor:pointer}
 @media (max-width:900px){
   body{display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden}
   .topbar{flex:0 0 auto}
+  .header-toggle{display:inline-flex}
+  body.header-collapsed .topbar{display:none}
+  body.header-collapsed .header-restore{display:inline-flex}
+  body.header-collapsed .panel_palette > .panel__head{padding-right:46px}
   .layout{
     grid-template-columns:1fr;
-    grid-template-rows:minmax(140px,38%) minmax(0,1fr);
+    grid-template-rows:minmax(160px,46%) minmax(0,1fr);
     flex:1 1 auto;min-height:0;height:auto;
   }
   .panel{height:auto;min-height:0}
@@ -430,7 +442,7 @@ select.input{cursor:pointer}
   .tools .btn{padding:7px 10px}
   .layout{padding:8px;gap:10px}
   .panel__head{flex-wrap:wrap}
-  .palette__controls{grid-template-columns:1fr}
+  .palette__controls{grid-template-columns:minmax(0,1fr) 112px;gap:6px;padding:8px}
   .section__head,.category__head{flex-wrap:wrap}
   .section__head .rewards,.category__head .rewards{max-width:100%;width:100%}
   .section__head .rewards__list,.category__head .rewards__list{flex-wrap:wrap;overflow:visible}

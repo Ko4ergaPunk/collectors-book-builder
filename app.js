@@ -11,6 +11,7 @@
   var editTab = "normal";        // 'normal' | 'event'
 
   var STORAGE_KEY = "collectionsbook.config.v1";
+  var HEADER_KEY = "collectionsbook.headerCollapsed";
   var config = null;
 
   var $ = function (sel, root) { return (root || document).querySelector(sel); };
@@ -1278,6 +1279,15 @@
     if (themeBtn) themeBtn.addEventListener("click", function () {
       window.I18N.setTheme(window.I18N.getTheme() === "light" ? "dark" : "light");
     });
+    function setHeaderCollapsed(collapsed) {
+      document.body.classList.toggle("header-collapsed", collapsed);
+      try { if (collapsed) localStorage.setItem(HEADER_KEY, "1"); else localStorage.removeItem(HEADER_KEY); } catch (e) {}
+    }
+    var hideHeaderBtn = $("#btnHideHeader");
+    if (hideHeaderBtn) hideHeaderBtn.addEventListener("click", function () { setHeaderCollapsed(true); });
+    var showHeaderBtn = $("#btnShowHeader");
+    if (showHeaderBtn) showHeaderBtn.addEventListener("click", function () { setHeaderCollapsed(false); });
+    try { if (localStorage.getItem(HEADER_KEY) === "1") setHeaderCollapsed(true); } catch (e) {}
     document.addEventListener("i18n:change", function () {
       rebuildTabs();
       rebuildCatFilter();
