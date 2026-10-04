@@ -478,6 +478,129 @@
     trash.classList.add("show");
   }
 
+  /* ---------- touch drag & drop ---------- */
+  function initTouchDnD() {
+    var LONG_PRESS = 220;
+    var MOVE_CANCEL = 10;
+    var state = null;
+    var ghost = null;
+
+    function nearestDraggable(node) {
+      while (node && node.nodeType === 1) {
+        if (node.classList.contains("slot") || node.classList.contains("chip")) return node;
+        node = node.parentNode;
+      }
+      return null;
+    }
+
+    function cancel() {
+      if (!state) return;
+      if (state.timer) { clearTimeout(state.timer); state.timer = null; }
+      if (state.source && state.wasDraggable !== undefined) state.source.draggable = state.wasDraggable;
+      if (state.active) {
+        if (state.source) state.source.classList.remove("dragging");
+        if (ghost && ghost.parentNode) ghost.parentNode.removeChild(ghost);
+        endDrag();
+      }
+      state = null;
+      ghost = null;
+    }
+
+    function activate() {
+      if (!state) return;
+      state.timer = null;
+      state.active = true;
+      var src = state.source;
+      if (src.classList.contains("slot")) {
+        drag = { kind: "new", item: src.dataset.id };
+      } else {
+        var grid = src.parentElement;
+        drag = { kind: "move", si: +grid.dataset.si, ci: +grid.dataset.ci, idx: +src.dataset.idx, item: src.dataset.id };
+        trash.classList.add("show");
+      }
+      src.classList.add("dragging");
+
+      var rect = src.getBoundingClientRect();
+      var size = Math.max(36, Math.min(rect.width, 60));
+      ghost = document.createElement("div");
+      ghost.className = "dnd-ghost";
+      ghost.style.width = size + "px";
+      ghost.style.height = size + "px";
+      ghost.appendChild(makeIconById(drag.item, size));
+      document.body.appendChild(ghost);
+      moveGhost(state.lastX, state.lastY);
+
+      if (navigator.vibrate) { try { navigator.vibrate(12); } catch (e) {} }
+    }
+
+    function moveGhost(x, y) {
+      if (!ghost) return;
+      ghost.style.left = x + "px";
+      ghost.style.top = y + "px";
+    }
+
+    function targetAt(x, y) {
+      var el = document.elementFromPoint(x, y);
+      if (!el || !el.closest) return null;
+      if (trash.contains(el)) return trash;
+      var reward = el.closest(".reward");
+      if (reward) return reward;
+      var add = el.closest(".reward_add");
+      if (add) return add;
+      var grid = el.closest(".items");
+      if (grid) return grid;
+      return null;
+    }
+
+    function highlight(target) {
+      $$(".items.over").forEach(function (e) { if (e !== target) e.classList.remove("over"); });
+      $$(".reward.over").forEach(function (e) { if (e !== target) e.classList.remove("over"); });
+      if (target && target.classList) target.classList.add("over");
+    }
+
+    function fireDrop(el, x, y) {
+      var ev = document.createEvent("Event");
+      ev.initEvent("drop", true, true);
+      ev.clientX = x; ev.clientY = y;
+      el.dispatchEvent(ev);
+    }
+
+    document.addEventListener("touchstart", function (e) {
+      if (e.touches.length !== 1 || state) return;
+      var el = nearestDraggable(e.target);
+      if (!el) return;
+      var wasDraggable = el.draggable;
+      el.draggable = false;
+      var t = e.touches[0];
+      state = { source: el, wasDraggable: wasDraggable, startX: t.clientX, startY: t.clientY, lastX: t.clientX, lastY: t.clientY, active: false, timer: null };
+      state.timer = setTimeout(activate, LONG_PRESS);
+    }, { passive: true });
+
+    document.addEventListener("touchmove", function (e) {
+      if (!state) return;
+      var t = e.touches[0];
+      state.lastX = t.clientX; state.lastY = t.clientY;
+      if (!state.active) {
+        var dx = t.clientX - state.startX, dy = t.clientY - state.startY;
+        if (dx * dx + dy * dy > MOVE_CANCEL * MOVE_CANCEL) cancel();
+        return;
+      }
+      e.preventDefault();
+      moveGhost(t.clientX, t.clientY);
+      highlight(targetAt(t.clientX, t.clientY));
+    }, { passive: false });
+
+    document.addEventListener("touchend", function (e) {
+      if (!state || !state.active) { cancel(); return; }
+      var t = e.changedTouches[0];
+      var target = targetAt(t.clientX, t.clientY);
+      if (target) fireDrop(target, t.clientX, t.clientY);
+      cancel();
+    });
+
+    document.addEventListener("touchcancel", cancel);
+  }
+
   /* ---------- editor ---------- */
   var editorEl = $("#editor");
   var editorTabsEl = $("#editorTabs");
@@ -1218,6 +1341,8 @@
 
     document.addEventListener("dragover", function (e) { if (drag) e.preventDefault(); });
     document.addEventListener("drop", function (e) { if (drag) { e.preventDefault(); endDrag(); } });
+
+    initTouchDnD();
 
     var stored = null;
     try { stored = localStorage.getItem(STORAGE_KEY); } catch (e) {}
