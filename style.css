@@ -410,10 +410,16 @@ select.input{cursor:pointer}
 }
 
 @media (max-width:900px){
-  .layout{grid-template-columns:1fr;height:auto}
-  .panel{height:auto}
-  .panel_palette{height:52vh}
-  .panel_editor{min-height:60vh}
+  body{display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden}
+  .topbar{flex:0 0 auto}
+  .layout{
+    grid-template-columns:1fr;
+    grid-template-rows:minmax(140px,38%) minmax(0,1fr);
+    flex:1 1 auto;min-height:0;height:auto;
+  }
+  .panel{height:auto;min-height:0}
+  .panel_palette{height:auto}
+  .panel_editor{min-height:0}
 }
 
 @media (max-width:640px){
