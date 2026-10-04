@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Конструктор Collector's Book — Minecraft 26.2</title>
+<link rel="icon" type="image/png" href="collection_book.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <div class="brand__book"></div>
+    <div>
+      <div class="brand__title" data-i18n="app.title">Конструктор Collector's Book</div>
+      <div class="brand__sub">Minecraft 26.2 · <span id="itemTotal">0</span> <span data-i18n="units.items">блоков и предметов</span></div>
+    </div>
+  </div>
+  <div class="tools">
+    <button class="theme-toggle" id="themeToggle" type="button" data-i18n-title="theme.toggle" title="Переключить тему" aria-label="Переключить тему">
+      <svg class="theme-toggle__icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+        <circle cx="12" cy="12" r="4.4" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <path d="M12 2.4v2.4M12 19.2v2.4M2.4 12h2.4M19.2 12h2.4M5.2 5.2l1.7 1.7M17.1 17.1l1.7 1.7M18.8 5.2l-1.7 1.7M6.9 17.1l-1.7 1.7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+    </button>
+    <select id="langSelect" class="input input_compact" data-i18n-title="ui.language" title="Язык" aria-label="Язык">
+      <option value="ru">🇷🇺 Русский</option>
+      <option value="en">🇬🇧 English</option>
+    </select>
+    <button class="btn" id="btnExample" data-i18n="btn.example">Пример</button>
+    <button class="btn" id="btnNew" data-i18n="btn.new">Новый</button>
+    <button class="btn" id="btnLoad" data-i18n="btn.load">Загрузить</button>
+    <button class="btn btn_primary" id="btnSave" data-i18n="btn.save">Сохранить конфиг</button>
+    <input type="file" id="fileInput" accept=".json,application/json" hidden>
+  </div>
+</header>
+
+<main class="layout">
+  <section class="panel panel_palette">
+    <div class="panel__head">
+      <span class="panel__title" data-i18n="panel.palette">Блоки и предметы</span>
+      <div class="head__actions">
+        <span class="palette__count" id="paletteCount"></span>
+        <button class="btn btn_small" id="btnLoadMod" data-i18n="btn.loadMod">+ Загрузить мод</button>
+      </div>
+    </div>
+    <div class="palette__tabs" id="paletteTabs"></div>
+    <div class="palette__controls">
+      <input type="text" id="search" class="input" data-i18n-ph="search.placeholder" placeholder="Поиск по названию или ID…">
+      <select id="catFilter" class="input"></select>
+    </div>
+    <div class="palette" id="palette"></div>
+    <div class="palette__hint" data-i18n="palette.hint">Перетащите предмет в категорию справа →</div>
+  </section>
+
+  <section class="panel panel_editor">
+    <div class="panel__head">
+      <span class="panel__title" data-i18n="panel.config">Конфигурация</span>
+      <button class="btn btn_small" id="btnAddSection" data-i18n="btn.addSection">+ Раздел</button>
+    </div>
+    <div class="editor__tabs" id="editorTabs"></div>
+    <div class="editor" id="editor"></div>
+  </section>
+</main>
+
+<div class="drop-trash" id="trash" data-i18n="trash.drop">Отпустите, чтобы удалить</div>
+
+<div class="modal" id="modal" hidden>
+  <div class="modal__backdrop" data-close></div>
+  <div class="modal__box">
+    <div class="modal__title" id="modalTitle"></div>
+    <div class="modal__body" id="modalBody"></div>
+    <div class="modal__foot">
+      <button class="btn" data-close data-i18n="modal.cancel">Отмена</button>
+      <button class="btn btn_primary" id="modalOk" data-i18n="modal.ok">Готово</button>
+    </div>
+  </div>
+</div>
+
+<div class="toasts" id="toasts"></div>
+
+<datalist id="iconList">
+  <option value="icon_bookmark_main"></option>
+  <option value="icon_bookmark_about"></option>
+  <option value="icon_bookmark_halloween"></option>
+  <option value="icon_category_plants"></option>
+  <option value="gold_icon_bookmark_main"></option>
+  <option value="gold_icon_bookmark_about"></option>
+  <option value="gold_icon_bookmark_halloween"></option>
+  <option value="gold_icon_category_plants"></option>
+</datalist>
+<datalist id="itemIdList"></datalist>
+
+<input type="file" id="modInput" accept=".jar,application/java-archive" hidden>
+
+<script src="i18n.js"></script>
+<script src="data/items.js"></script>
+<script src="data/example.js"></script>
+<script src="render.js"></script>
+<script src="mods.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,180 @@
+{
+  "sections": [
+    {
+      "id": "dummy",
+      "name": "Заглавие",
+      "names": {
+        "en_us": "Title",
+        "ru_ru": "Заглавие"
+      },
+      "icon": "icon_bookmark_about",
+      "categories": []
+    },
+    {
+      "id": "main",
+      "name": "Коллекция основная",
+      "names": {
+        "en_us": "Main Collection",
+        "ru_ru": "Коллекция основная"
+      },
+      "icon": "icon_bookmark_main",
+      "gold_icon": "gold_icon_bookmark_main",
+      "tab_active": "bookmark_active_left",
+      "tab_inactive": "bookmark_inactive_left",
+      "rewards": [
+        {
+          "item": "minecraft:diamond",
+          "count": 3
+        },
+        {
+          "item": "minecraft:emerald",
+          "count": 1
+        }
+      ],
+      "categories": [
+        {
+          "id": "plants",
+          "name": "Растения",
+          "names": {
+            "en_us": "Plants",
+            "ru_ru": "Растения"
+          },
+          "icon": "icon_category_plants",
+          "items": [
+            "minecraft:wheat",
+            "minecraft:apple",
+            "minecraft:potato",
+            "minecraft:carrot",
+            "minecraft:beetroot",
+            "minecraft:melon_slice",
+            "minecraft:pumpkin",
+            "minecraft:sugar_cane",
+            "minecraft:bamboo",
+            "minecraft:cactus",
+            "minecraft:sweet_berries",
+            "minecraft:kelp",
+            "minecraft:cocoa_beans",
+            "minecraft:red_mushroom",
+            "minecraft:brown_mushroom",
+            "minecraft:sea_pickle",
+            "minecraft:glow_berries",
+            "minecraft:vine",
+            "minecraft:lily_pad",
+            "minecraft:nether_wart",
+            "minecraft:crimson_fungus",
+            "minecraft:warped_fungus"
+          ],
+          "gold_icon": "gold_icon_category_plants",
+          "rewards": [
+            {
+              "item": "minecraft:diamond",
+              "count": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "aripopa",
+      "name": "Коллекция арипопааааааа",
+      "names": {
+        "en_us": "Aripopa Collection",
+        "ru_ru": "Коллекция арипопааааааа"
+      },
+      "icon": "icon_bookmark_main",
+      "gold_icon": "gold_icon_bookmark_main",
+      "rewards": [
+        {
+          "item": "minecraft:cocoa_beans",
+          "count": 1
+        }
+      ],
+      "categories": [
+        {
+          "id": "arimopsa",
+          "name": "arimopsa",
+          "names": {
+            "en_us": "arimopsa",
+            "ru_ru": "arimopsa"
+          },
+          "icon": "icon_category_plants",
+          "items": [
+            "minecraft:pufferfish",
+            "minecraft:brush",
+            "minecraft:flint_and_steel"
+          ],
+          "gold_icon": "gold_icon_category_plants",
+          "rewards": [
+            {
+              "item": "minecraft:brown_dye",
+              "count": 1
+            }
+          ]
+        },
+        {
+          "id": "siferok",
+          "name": "siferc0ck",
+          "names": {
+            "en_us": "siferc0ck",
+            "ru_ru": "siferc0ck"
+          },
+          "icon": "icon_category_plants",
+          "items": [
+            "minecraft:chorus_fruit",
+            "minecraft:wooden_pickaxe",
+            "minecraft:wind_charge"
+          ],
+          "gold_icon": "gold_icon_category_plants",
+          "rewards": [
+            {
+              "item": "minecraft:brown_dye",
+              "count": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "halloween",
+      "name": "Ивент: Хэллоуин",
+      "names": {
+        "en_us": "Event: Halloween",
+        "ru_ru": "Ивент: Хэллоуин"
+      },
+      "icon": "icon_bookmark_halloween",
+      "gold_icon": "gold_icon_bookmark_halloween",
+      "event": true,
+      "tab_active": "bookmark_active_right",
+      "tab_inactive": "bookmark_inactive_right",
+      "rewards": [
+        {
+          "item": "minecraft:diamond",
+          "count": 1
+        }
+      ],
+      "categories": [
+        {
+          "id": "event_drops",
+          "name": "Ивентовые предметы",
+          "names": {
+            "en_us": "Event items",
+            "ru_ru": "Ивентовые предметы"
+          },
+          "icon": "icon_category_plants",
+          "items": [
+            "minecraft:jack_o_lantern",
+            "minecraft:carved_pumpkin",
+            "minecraft:pumpkin_pie"
+          ],
+          "gold_icon": "gold_icon_category_plants",
+          "rewards": [
+            {
+              "item": "minecraft:brown_dye",
+              "count": 1
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
