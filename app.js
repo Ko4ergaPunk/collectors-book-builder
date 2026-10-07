@@ -449,13 +449,26 @@
       rewards: ensureRewards(c)
     };
   }
+  function defaultTitleSection() {
+    return ensureSection({
+      id: "info",
+      name: t("default.title"),
+      names: { en_us: "Title", ru_ru: "Заглавие" },
+      icon: "icon_bookmark_about"
+    });
+  }
+  function withTitleSection(sections) {
+    var list = (sections || []).slice();
+    if (!list.some(isTitleSection)) list.unshift(defaultTitleSection());
+    return list;
+  }
   function normalize(cfg) {
     var sections = (cfg && Array.isArray(cfg.sections)) ? cfg.sections : [];
-    return { sections: sections.map(function (s) {
+    return { sections: withTitleSection(sections.map(function (s) {
       var sec = ensureSection(s);
       sec.categories = sec.categories.map(ensureCategory);
       return sec;
-    }) };
+    })) };
   }
 
   /* ---------- drag state ---------- */
@@ -608,7 +621,7 @@
 
   function render() { renderEditorTabs(); renderEditor(); refreshPaletteUsage(); autosave(); }
 
-  function isTitleSection(sec) { return !!sec && sec.id === "dummy"; }
+  function isTitleSection(sec) { return !!sec && sec.id === "info"; }
 
   function countByType(isEvent) {
     return config.sections.filter(function (s) { return !isTitleSection(s) && !!s.event === isEvent; }).length;
@@ -1201,7 +1214,7 @@
   }
   function serialize() {
     return {
-      sections: config.sections.map(function (s) {
+      sections: withTitleSection(config.sections).map(function (s) {
         var sec = { id: s.id, name: s.name };
         var nm = cleanNames(s.names); if (nm) sec.names = nm;
         sec.icon = s.icon || "";
@@ -1226,7 +1239,7 @@
     var data = JSON.stringify(serialize(), null, 2);
     var blob = new Blob([data], { type: "application/json" });
     var a = document.createElement("a");
-    a.href = URL.createObjectURL(blob); a.download = "collectionsbook.json";
+    a.href = URL.createObjectURL(blob); a.download = "arzmine-collectorsbook.json";
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
     toast(t("toast.configSaved"));
@@ -1321,7 +1334,7 @@
     });
     $("#btnSave").addEventListener("click", saveConfig);
     $("#btnNew").addEventListener("click", function () {
-      if (confirm(t("confirm.newConfig"))) { config = { sections: [] }; render(); }
+      if (confirm(t("confirm.newConfig"))) { config = normalize({ sections: [] }); render(); }
     });
     $("#btnExample").addEventListener("click", function () {
       if (window.EXAMPLE_CONFIG) { config = normalize(clone(window.EXAMPLE_CONFIG)); render(); toast(t("toast.exampleLoaded")); }

@@ -96,6 +96,7 @@
       "default.section": "Новый раздел",
       "default.eventSection": "Новый ивентовый раздел",
       "default.category": "Новая категория",
+      "default.title": "Заглавие",
 
       "toast.modNotFound": "Модуль загрузки модов не найден",
       "toast.readingMod": "Читаю мод: {name}…",
@@ -214,6 +215,7 @@
       "default.section": "New section",
       "default.eventSection": "New event section",
       "default.category": "New category",
+      "default.title": "Title",
 
       "toast.modNotFound": "Mod loading module not found",
       "toast.readingMod": "Reading mod: {name}…",

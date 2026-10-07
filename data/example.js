@@ -1,7 +1,7 @@
 window.EXAMPLE_CONFIG={
   "sections": [
     {
-      "id": "dummy",
+      "id": "info",
       "name": "Заглавие",
       "names": { "en_us": "Title", "ru_ru": "Заглавие" },
       "icon": "icon_bookmark_about",
