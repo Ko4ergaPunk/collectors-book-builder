@@ -157,6 +157,84 @@
     return resolveModel(zip, ref);
   }
 
+  /* ---------------- GeckoLib / Bedrock geometry ---------------- */
+  async function readItemDisplay(zip, ns, p) {
+    var f = "assets/" + ns + "/models/item/" + p + ".json";
+    if (zip.has(f)) { try { return JSON.parse(await zip.text(f)); } catch (e) {} }
+    return null;
+  }
+  function isBuiltinEntity(def) {
+    return !!def && typeof def.parent === "string" && def.parent.indexOf("builtin/entity") !== -1;
+  }
+  function listGeoFiles(zip, nsSet) {
+    var out = [];
+    zip.list().forEach(function (n) {
+      var m = /^assets\/([^\/]+)\/geo\/(.+)\.geo\.json$/.exec(n);
+      if (m && nsSet.has(m[1])) {
+        var sub = m[2].split("/");
+        out.push({ ns: m[1], path: n, base: sub[sub.length - 1].toLowerCase() });
+      }
+    });
+    return out;
+  }
+  async function loadGeo(zip, path, cache) {
+    if (cache[path] !== undefined) return cache[path];
+    var raw = null;
+    try { raw = JSON.parse(await zip.text(path)); } catch (e) { cache[path] = null; return null; }
+    var def = raw["minecraft:geometry"];
+    if (Array.isArray(def)) def = def[0];
+    else if (!def && raw.description) def = raw;
+    if (!def || !def.bones) { cache[path] = null; return null; }
+    var desc = def.description || {};
+    var geo = {
+      identifier: desc.identifier || "",
+      textureWidth: desc.texture_width || 64,
+      textureHeight: desc.texture_height || 64,
+      bones: def.bones.map(function (b) {
+        return {
+          name: b.name, parent: b.parent, pivot: b.pivot, rotation: b.rotation,
+          mirror: b.mirror, inflate: b.inflate,
+          cubes: (b.cubes || []).map(function (c) {
+            return { origin: c.origin, size: c.size, uv: c.uv, rotation: c.rotation, pivot: c.pivot, inflate: c.inflate, mirror: c.mirror };
+          })
+        };
+      })
+    };
+    cache[path] = geo;
+    return geo;
+  }
+  function pickGeoPath(geoFiles, ns, p) {
+    var inNs = geoFiles.filter(function (g) { return g.ns === ns; });
+    if (!inNs.length) return null;
+    var lp = p.toLowerCase();
+    var exact = inNs.filter(function (g) { return g.base === lp; });
+    if (exact.length) return exact[0].path;
+    var partial = inNs.filter(function (g) { return lp.indexOf(g.base) !== -1 || g.base.indexOf(lp) !== -1; });
+    if (partial.length) return partial[0].path;
+    if (inNs.length === 1) return inNs[0].path;
+    return null;
+  }
+  function geoTexture(zip, ns, p, def) {
+    if (def && def.textures) {
+      var prefer = ["particle", "layer0", "all", "texture"];
+      for (var i = 0; i < prefer.length; i++) {
+        var val = def.textures[prefer[i]];
+        if (val && typeof val === "string" && val.charAt(0) !== "#") {
+          var path = texPathFull(normalizeRef(val));
+          if (path && zip.has(path)) return path;
+        }
+      }
+    }
+    var cands = [
+      "assets/" + ns + "/textures/item/" + p + ".png",
+      "assets/" + ns + "/textures/entity/" + p + ".png",
+      "assets/" + ns + "/textures/block/" + p + ".png",
+      "assets/" + ns + "/textures/" + p + ".png"
+    ];
+    for (var c = 0; c < cands.length; c++) if (zip.has(cands[c])) return cands[c];
+    return null;
+  }
+
   async function resolveFlatTexture(zip, id) {
     var ns = id.slice(0, id.indexOf(":")), p = id.slice(id.indexOf(":") + 1);
     var ref = null;
@@ -251,9 +329,33 @@
     }
 
     var idList = Array.from(ids.keys());
+    var geoFiles = listGeoFiles(zip, nsSet);
+    var geoCache = {};
     var items = await mapLimit(idList, 5, async function (id) {
       var kind = ids.get(id);
       var name = nameFor(id, kind, lang);
+      var ns = id.slice(0, id.indexOf(":")), p = id.slice(id.indexOf(":") + 1);
+
+      // GeckoLib / custom entity-rendered item
+      var idef = await readItemDisplay(zip, ns, p);
+      if (isBuiltinEntity(idef)) {
+        var gpath = pickGeoPath(geoFiles, ns, p);
+        if (gpath) {
+          var geo = await loadGeo(zip, gpath, geoCache);
+          if (geo && geo.bones && geo.bones.length) {
+            var gtex = geoTexture(zip, ns, p, idef);
+            if (gtex) await ensureTex(gtex);
+            return {
+              id: id, name: name, kind: kind, render: "geo", texture: gtex, model: null,
+              geo: {
+                textureWidth: geo.textureWidth, textureHeight: geo.textureHeight,
+                texture: gtex, bones: geo.bones
+              }
+            };
+          }
+        }
+      }
+
       if (kind === "item") {
         var flat = null;
         try { flat = await resolveFlatTexture(zip, id); } catch (e) {}

@@ -229,6 +229,204 @@
     ctx.restore();
   }
 
+  function paintFaces(ctx, faces, W, H, getImage) {
+    if (!faces.length) return;
+    var minx = Infinity, maxx = -Infinity, miny = Infinity, maxy = -Infinity;
+    faces.forEach(function (fa) { fa.proj.forEach(function (q) { if (q.x < minx) minx = q.x; if (q.x > maxx) maxx = q.x; if (q.y < miny) miny = q.y; if (q.y > maxy) maxy = q.y; }); });
+    if (!isFinite(minx)) return;
+    var span = Math.max(maxx - minx, maxy - miny) || 1;
+    var scale = (Math.min(W, H) * 0.84) / span;
+    var cx = (minx + maxx) / 2, cy = (miny + maxy) / 2;
+    faces.forEach(function (fa) {
+      fa.proj.forEach(function (q) { q.x = (q.x - cx) * scale + W / 2; q.y = (q.y - cy) * scale + H / 2; });
+    });
+    faces.sort(function (a, b) { return a.depth - b.depth; });
+    faces.forEach(function (fa) { drawFace(ctx, fa, getImage); });
+  }
+
+  /* ---------------- GeckoLib / Bedrock geometry ---------------- */
+  var GD = [1 / SQ3, 1 / SQ3, 1 / SQ3];      // view direction (toward camera, +X+Y+Z)
+  var GR = [0.70710678, 0, -0.70710678];     // screen right
+  var GU = [-0.40824829, 0.81649658, -0.40824829]; // screen up
+  function gproject(p) {
+    return {
+      x: p[0] * GR[0] + p[1] * GR[1] + p[2] * GR[2],
+      y: -(p[0] * GU[0] + p[1] * GU[1] + p[2] * GU[2]),
+      z: p[0] * GD[0] + p[1] * GD[1] + p[2] * GD[2]
+    };
+  }
+
+  /* 4x4 column-major matrices */
+  function mIdent() { return [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]; }
+  function mMul(a, b) {
+    var r = new Array(16);
+    for (var c = 0; c < 4; c++) for (var row = 0; row < 4; row++) {
+      var s = 0;
+      for (var k = 0; k < 4; k++) s += a[k * 4 + row] * b[c * 4 + k];
+      r[c * 4 + row] = s;
+    }
+    return r;
+  }
+  function mTrans(x, y, z) { var m = mIdent(); m[12] = x; m[13] = y; m[14] = z; return m; }
+  function mRotX(a) { var c = Math.cos(a), s = Math.sin(a); return [1, 0, 0, 0, 0, c, s, 0, 0, -s, c, 0, 0, 0, 0, 1]; }
+  function mRotY(a) { var c = Math.cos(a), s = Math.sin(a); return [c, 0, -s, 0, 0, 1, 0, 0, s, 0, c, 0, 0, 0, 0, 1]; }
+  function mRotZ(a) { var c = Math.cos(a), s = Math.sin(a); return [c, s, 0, 0, -s, c, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]; }
+  var RAD = Math.PI / 180;
+  function mEuler(rot) {
+    var rx = (rot[0] || 0) * RAD, ry = (rot[1] || 0) * RAD, rz = (rot[2] || 0) * RAD;
+    if (!rx && !ry && !rz) return mIdent();
+    return mMul(mMul(mRotZ(rz), mRotY(ry)), mRotX(rx));
+  }
+  function mApply(m, p) {
+    return [
+      m[0] * p[0] + m[4] * p[1] + m[8] * p[2] + m[12],
+      m[1] * p[0] + m[5] * p[1] + m[9] * p[2] + m[13],
+      m[2] * p[0] + m[6] * p[1] + m[10] * p[2] + m[14]
+    ];
+  }
+  function pivotMatrix(pivot, rot) {
+    var p = pivot || [0, 0, 0];
+    return mMul(mTrans(p[0], p[1], p[2]), mMul(mEuler(rot || [0, 0, 0]), mTrans(-p[0], -p[1], -p[2])));
+  }
+  function faceVerts(from, to) {
+    var x0 = from[0], y0 = from[1], z0 = from[2], x1 = to[0], y1 = to[1], z1 = to[2];
+    var BLB = [x0, y0, z0], BRB = [x0, y0, z1], TLB = [x0, y1, z0], TRB = [x0, y1, z1];
+    var TLF = [x1, y1, z0], TRF = [x1, y1, z1], BLF = [x1, y0, z0], BRF = [x1, y0, z1];
+    return {
+      west: [TRB, TLB, BLB, BRB],
+      east: [TLF, TRF, BRF, BLF],
+      north: [TLB, TLF, BLF, BLB],
+      south: [TRF, TRB, BRB, BRF],
+      up: [TRB, TRF, TLF, TLB],
+      down: [BLB, BLF, BRF, BRB]
+    };
+  }
+  function rotateUVs(deg, u, v, uW, vH) {
+    switch (((deg % 360) + 360) % 360) {
+      case 90: return [uW, v, uW, vH, u, vH, u, v];
+      case 180: return [uW, vH, u, vH, u, v, uW, v];
+      case 270: return [u, vH, u, v, uW, v, uW, vH];
+      default: return [u, v, uW, v, uW, vH, u, vH];
+    }
+  }
+  function naturalFaceSize(fname, s) {
+    if (fname === "west" || fname === "east") return [s[2], s[1]];
+    if (fname === "up" || fname === "down") return [s[0], s[2]];
+    return [s[0], s[1]];
+  }
+  function skipZeroFace(s, fname) {
+    if (s[0] === 0 && fname !== "west" && fname !== "east") return true;
+    if (s[1] === 0 && fname !== "up" && fname !== "down") return true;
+    if (s[2] === 0 && fname !== "north" && fname !== "south") return true;
+    return false;
+  }
+
+  function buildGeoFaces(geo) {
+    var facesOut = [];
+    var texW = geo.textureWidth || 64, texH = geo.textureHeight || 64;
+    var bones = geo.bones || [];
+    var byName = {}, wcache = {};
+    bones.forEach(function (b) { if (b && b.name) byName[b.name] = b; });
+    function world(name, guard) {
+      if (wcache[name]) return wcache[name];
+      var b = byName[name];
+      if (!b || guard > 32) return mIdent();
+      var parent = b.parent && byName[b.parent] ? world(b.parent, (guard || 0) + 1) : mIdent();
+      wcache[name] = mMul(parent, pivotMatrix(b.pivot, b.rotation));
+      return wcache[name];
+    }
+
+    bones.forEach(function (bone) {
+      if (!bone || !bone.cubes) return;
+      var bw = world(bone.name, 0);
+      var boneMirror = bone.mirror === true;
+      bone.cubes.forEach(function (cube) {
+        if (!cube || !cube.origin || !cube.size) return;
+        var s = cube.size, o = cube.origin;
+        var infl = cube.inflate || 0;
+        var from = [o[0] - infl, o[1] - infl, o[2] - infl];
+        var to = [o[0] + s[0] + infl, o[1] + s[1] + infl, o[2] + s[2] + infl];
+        var mirror = cube.mirror != null ? cube.mirror === true : boneMirror;
+        var cp = cube.pivot || [o[0] + s[0] / 2, o[1] + s[1] / 2, o[2] + s[2] / 2];
+        var M = mMul(bw, pivotMatrix(cp, cube.rotation));
+        var verts = faceVerts(from, to);
+        var uv = cube.uv;
+        var boxUV = !uv || Array.isArray(uv);
+        ["west", "east", "north", "south", "up", "down"].forEach(function (fname) {
+          if (skipZeroFace(s, fname)) return;
+          var rect, rotation = 0;
+          if (boxUV) {
+            var u = (uv || [0, 0])[0], v = (uv || [0, 0])[1], sx = s[0], sy = s[1], sz = s[2];
+            if (fname === "west") rect = [u + sz + sx, v + sz, sz, sy];
+            else if (fname === "east") rect = [u, v + sz, sz, sy];
+            else if (fname === "north") rect = [u + sz, v + sz, sx, sy];
+            else if (fname === "south") rect = [u + sz + sx + sz, v + sz, sx, sy];
+            else if (fname === "up") rect = [u + sz, v, sx, sz];
+            else rect = [u + sz + sx, v + sz, sx, -sz];
+          } else {
+            var d = uv[fname];
+            if (!d) return;
+            var uu = d.uv || [0, 0];
+            var ds = d.uv_size || naturalFaceSize(fname, s);
+            rect = [uu[0], uu[1], ds[0], ds[1]];
+            rotation = d.uv_rotation != null ? d.uv_rotation : (d.rotation || 0);
+          }
+          var u0 = rect[0], v0 = rect[1], w = rect[2], h = rect[3];
+          if (!w || !h) return;
+          var uA = u0 / texW, vA = v0 / texH, uB = (u0 + w) / texW, vB = (v0 + h) / texH;
+          if (uA === uB || vA === vB) return;
+          if (!mirror) { var tmp = uA; uA = uB; uB = tmp; }
+          var uvs = rotateUVs(rotation, uA, vA, uB, vB);
+          var vertList = verts[fname];
+          if (mirror) {
+            if (fname === "west") vertList = verts.east;
+            else if (fname === "east") vertList = verts.west;
+            else if (!boxUV && fname === "up") vertList = verts.down;
+            else if (!boxUV && fname === "down") vertList = verts.up;
+          }
+          var corners = [
+            { p: mApply(M, vertList[0]), u: uvs[0], v: uvs[1] },
+            { p: mApply(M, vertList[1]), u: uvs[2], v: uvs[3] },
+            { p: mApply(M, vertList[2]), u: uvs[4], v: uvs[5] },
+            { p: mApply(M, vertList[3]), u: uvs[6], v: uvs[7] }
+          ];
+          var umin = Math.min(corners[0].u, corners[1].u, corners[2].u, corners[3].u);
+          var umax = Math.max(corners[0].u, corners[1].u, corners[2].u, corners[3].u);
+          var vmin = Math.min(corners[0].v, corners[1].v, corners[2].v, corners[3].v);
+          var vmax = Math.max(corners[0].v, corners[1].v, corners[2].v, corners[3].v);
+          function find(u, v) {
+            for (var i = 0; i < 4; i++) if (Math.abs(corners[i].u - u) < 1e-9 && Math.abs(corners[i].v - v) < 1e-9) return corners[i];
+            return null;
+          }
+          var ordered = [find(umin, vmin), find(umax, vmin), find(umax, vmax), find(umin, vmax)];
+          if (!ordered[0] || !ordered[1] || !ordered[2] || !ordered[3]) return;
+          var depth = 0;
+          var proj = ordered.map(function (c) {
+            depth += c.p[0] * GD[0] + c.p[1] * GD[1] + c.p[2] * GD[2];
+            return gproject(c.p);
+          });
+          var C = ordered.map(function (c) { return { u: c.u * 16, v: c.v * 16 }; });
+          facesOut.push({
+            proj: proj, C: C, tex: geo.texture || null,
+            shade: SHADE[fname] != null ? SHADE[fname] : 1,
+            depth: depth
+          });
+        });
+      });
+    });
+    return facesOut;
+  }
+
+  function renderGeo(canvas, geo, getImage) {
+    var W = canvas.width, H = canvas.height;
+    var ctx = canvas.getContext("2d");
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    ctx.imageSmoothingEnabled = false;
+    if (!geo) return;
+    paintFaces(ctx, buildGeoFaces(geo), W, H, getImage);
+  }
+
   function render(canvas, desc, getImage) {
     var W = canvas.width, H = canvas.height;
     var ctx = canvas.getContext("2d");
@@ -263,21 +461,13 @@
       }
     });
     if (!faces.length) return;
-    var minx = Infinity, maxx = -Infinity, miny = Infinity, maxy = -Infinity;
-    faces.forEach(function (fa) { fa.proj.forEach(function (q) { if (q.x < minx) minx = q.x; if (q.x > maxx) maxx = q.x; if (q.y < miny) miny = q.y; if (q.y > maxy) maxy = q.y; }); });
-    if (!isFinite(minx)) return;
-    var span = Math.max(maxx - minx, maxy - miny) || 1;
-    var scale = (Math.min(W, H) * 0.84) / span;
-    var cx = (minx + maxx) / 2, cy = (miny + maxy) / 2;
-    faces.forEach(function (fa) {
-      fa.proj.forEach(function (q) { q.x = (q.x - cx) * scale + W / 2; q.y = (q.y - cy) * scale + H / 2; });
-    });
-    faces.sort(function (a, b) { return a.depth - b.depth; });
-    faces.forEach(function (fa) { drawFace(ctx, fa, getImage); });
+    paintFaces(ctx, faces, W, H, getImage);
   }
 
   root.BlockRender = {
     render: render,
+    renderGeo: renderGeo,
+    buildGeoFaces: buildGeoFaces,
     shapeElements: shapeElements,
     crossElements: crossElements,
     signElements: signElements,

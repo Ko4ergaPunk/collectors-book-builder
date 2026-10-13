@@ -39,7 +39,8 @@
           kind: it.kind, cat: it.kind === "block" ? 2 : 1,
           tex: it.texture ? modTexUrls[it.texture] || null : null,
           render: it.render || (it.kind === "item" ? "flat" : "model"),
-          model: it.model || null
+          model: it.model || null,
+          geo: it.geo || null
         });
       });
     });
@@ -86,6 +87,17 @@
   }
   function makeIconById(id, size) {
     var entry = entries.get(id);
+    if (entry && entry.render === "geo" && entry.geo && window.BlockRender && window.BlockRender.renderGeo) {
+      var gcanvas = document.createElement("canvas");
+      gcanvas.width = size * 2;
+      gcanvas.height = size * 2;
+      gcanvas.style.width = size + "px";
+      gcanvas.style.height = size + "px";
+      gcanvas.style.imageRendering = "pixelated";
+      gcanvas.style.display = "block";
+      try { window.BlockRender.renderGeo(gcanvas, entry.geo, getImage); } catch (e) {}
+      return gcanvas;
+    }
     if (entry && entry.render === "model" && entry.model && window.BlockRender) {
       var canvas = document.createElement("canvas");
       canvas.width = size * 2;
@@ -315,7 +327,7 @@
         return {
           key: m.key, name: m.name, version: m.version, id: m.id, textureKeys: m.textureKeys || [],
           items: (m.items || []).map(function (it) {
-            return { id: it.id, name: it.name, kind: it.kind, texture: it.texture, render: it.render, model: it.model };
+            return { id: it.id, name: it.name, kind: it.kind, texture: it.texture, render: it.render, model: it.model, geo: it.geo };
           })
         };
       });
