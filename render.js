@@ -272,8 +272,9 @@
   function mRotY(a) { var c = Math.cos(a), s = Math.sin(a); return [c, 0, -s, 0, 0, 1, 0, 0, s, 0, c, 0, 0, 0, 0, 1]; }
   function mRotZ(a) { var c = Math.cos(a), s = Math.sin(a); return [c, s, 0, 0, -s, c, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]; }
   var RAD = Math.PI / 180;
+  // GeckoLib negates the X and Y rotation values when baking Bedrock geometry
   function mEuler(rot) {
-    var rx = (rot[0] || 0) * RAD, ry = (rot[1] || 0) * RAD, rz = (rot[2] || 0) * RAD;
+    var rx = -(rot[0] || 0) * RAD, ry = -(rot[1] || 0) * RAD, rz = (rot[2] || 0) * RAD;
     if (!rx && !ry && !rz) return mIdent();
     return mMul(mMul(mRotZ(rz), mRotY(ry)), mRotX(rx));
   }
@@ -285,8 +286,10 @@
     ];
   }
   function pivotMatrix(pivot, rot) {
+    // GeckoLib mirrors the model on X: pivots become (-x, y, z)
     var p = pivot || [0, 0, 0];
-    return mMul(mTrans(p[0], p[1], p[2]), mMul(mEuler(rot || [0, 0, 0]), mTrans(-p[0], -p[1], -p[2])));
+    var px = -p[0], py = p[1], pz = p[2];
+    return mMul(mTrans(px, py, pz), mMul(mEuler(rot || [0, 0, 0]), mTrans(-px, -py, -pz)));
   }
   function faceVerts(from, to) {
     var x0 = from[0], y0 = from[1], z0 = from[2], x1 = to[0], y1 = to[1], z1 = to[2];
@@ -343,9 +346,10 @@
       bone.cubes.forEach(function (cube) {
         if (!cube || !cube.origin || !cube.size) return;
         var s = cube.size, o = cube.origin;
-        var infl = cube.inflate || 0;
-        var from = [o[0] - infl, o[1] - infl, o[2] - infl];
-        var to = [o[0] + s[0] + infl, o[1] + s[1] + infl, o[2] + s[2] + infl];
+        var infl = cube.inflate != null ? cube.inflate : (bone.inflate || 0);
+        // GeckoLib bakes the cube with the X axis mirrored: origin.x' = -(origin.x + size.x)
+        var from = [-(o[0] + s[0]) - infl, o[1] - infl, o[2] - infl];
+        var to = [-o[0] + infl, o[1] + s[1] + infl, o[2] + s[2] + infl];
         var mirror = cube.mirror != null ? cube.mirror === true : boneMirror;
         var cp = cube.pivot || [o[0] + s[0] / 2, o[1] + s[1] / 2, o[2] + s[2] / 2];
         var M = mMul(bw, pivotMatrix(cp, cube.rotation));

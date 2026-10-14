@@ -70,7 +70,7 @@
   function pickModelFromItemDef(j) {
     var m = j && j.model;
     if (!m) return null;
-    function one(x) { if (!x) return null; if (typeof x === "string") return x; if (x.model) return x.model; return null; }
+    function one(x) { if (!x) return null; if (typeof x === "string") return x; if (typeof x.model === "string") return x.model; return null; }
     var t = m.type;
     if (t === "minecraft:model") return one(m);
     if (t === "minecraft:composite") return one(m.models && m.models[0]);
@@ -133,6 +133,9 @@
     return { shape: BR.inferShape(hint), tex: tex, parent: hint };
   }
 
+  function isAirModel(r) {
+    return /(^|:)block\/air$/.test(r || "");
+  }
   function firstModelFromBlockstate(j) {
     function m(x) {
       if (!x) return null;
@@ -140,8 +143,12 @@
       if (Array.isArray(x)) return m(x[0]);
       return x.model || null;
     }
-    if (j.variants) { for (var k in j.variants) { var r = m(j.variants[k]); if (r) return r; } }
-    if (j.multipart) { for (var i = 0; i < j.multipart.length; i++) { var r2 = m(j.multipart[i].apply); if (r2) return r2; } }
+    if (j.variants) {
+      for (var k in j.variants) { var r = m(j.variants[k]); if (r && !isAirModel(r)) return r; }
+    }
+    if (j.multipart) {
+      for (var i = 0; i < j.multipart.length; i++) { var r2 = m(j.multipart[i].apply); if (r2 && !isAirModel(r2)) return r2; }
+    }
     return null;
   }
   async function resolveBlockModelRef(zip, ns, p) {
@@ -163,13 +170,30 @@
     if (zip.has(f)) { try { return JSON.parse(await zip.text(f)); } catch (e) {} }
     return null;
   }
-  function isBuiltinEntity(def) {
-    return !!def && typeof def.parent === "string" && def.parent.indexOf("builtin/entity") !== -1;
+  async function readItemDef(zip, ns, p) {
+    var f = "assets/" + ns + "/items/" + p + ".json";
+    if (zip.has(f)) { try { return JSON.parse(await zip.text(f)); } catch (e) {} }
+    return null;
+  }
+  function modelTypeIsGeckoLib(obj) {
+    return !!obj && typeof obj.type === "string" && /geckolib/i.test(obj.type);
+  }
+  function isEntityRendered(itemsDef, displayDef) {
+    // Old baked-model items reference the builtin entity model
+    if (displayDef && typeof displayDef.parent === "string" && displayDef.parent.indexOf("builtin/entity") !== -1) return true;
+    // New item definitions use a "special" model rendered by an entity/block-entity renderer
+    var m = itemsDef && itemsDef.model;
+    if (m && typeof m === "object") {
+      if (modelTypeIsGeckoLib(m)) return true;
+      if (modelTypeIsGeckoLib(m.model)) return true;
+      if (m.type === "minecraft:special") return true;
+    }
+    return false;
   }
   function listGeoFiles(zip, nsSet) {
     var out = [];
     zip.list().forEach(function (n) {
-      var m = /^assets\/([^\/]+)\/geo\/(.+)\.geo\.json$/.exec(n);
+      var m = /^assets\/([^\/]+)\/(.+)\.geo\.json$/.exec(n);
       if (m && nsSet.has(m[1])) {
         var sub = m[2].split("/");
         out.push({ ns: m[1], path: n, base: sub[sub.length - 1].toLowerCase() });
@@ -233,6 +257,48 @@
     ];
     for (var c = 0; c < cands.length; c++) if (zip.has(cands[c])) return cands[c];
     return null;
+  }
+
+  /* ---------------- chest / special entity models ---------------- */
+  function chestSpecial(itemsDef) {
+    var m = itemsDef && itemsDef.model;
+    if (!m) return null;
+    if (m.type === "minecraft:select") m = (m.cases && m.cases[0] && m.cases[0].model) || m.fallback;
+    if (m && m.type === "minecraft:special") {
+      var inner = m.model;
+      if (inner && inner.type === "minecraft:chest") return inner.texture || "minecraft:normal";
+    }
+    return null;
+  }
+  function chestTexturePath(ref) {
+    var i = ref.indexOf(":");
+    var ns = i < 0 ? "minecraft" : ref.slice(0, i), p = i < 0 ? ref : ref.slice(i + 1);
+    return "assets/" + ns + "/textures/entity/chest/" + p + ".png";
+  }
+  // Build a vanilla-style chest model (ChestModel single body) as block elements.
+  // Chest textures use a 64x64 layout; render.js UVs are in a 16-unit space.
+  function chestBox(tu, tv, from, to, tex) {
+    var w = to[0] - from[0], h = to[1] - from[1], d = to[2] - from[2];
+    var s = 16 / 64;
+    function R(u0, v0, u1, v1) { return [u0 * s, v0 * s, u1 * s, v1 * s]; }
+    return {
+      from: from, to: to,
+      faces: {
+        up: { uv: R(tu + d, tv, tu + d + w, tv + d), texture: tex },
+        down: { uv: R(tu + d + w, tv, tu + d + 2 * w, tv + d), texture: tex },
+        east: { uv: R(tu, tv + d, tu + d, tv + d + h), texture: tex },
+        north: { uv: R(tu + d, tv + d, tu + d + w, tv + d + h), texture: tex },
+        west: { uv: R(tu + d + w, tv + d, tu + d + 2 * w, tv + d + h), texture: tex },
+        south: { uv: R(tu + d + 2 * w, tv + d, tu + d + 2 * w + d, tv + d + h), texture: tex }
+      }
+    };
+  }
+  function chestElements(tex) {
+    return [
+      chestBox(0, 19, [1, 0, 1], [15, 10, 15], tex),
+      chestBox(0, 0, [1, 9, 1], [15, 14, 15], tex),
+      chestBox(0, 0, [7, 7, 15], [9, 11, 16], tex)
+    ];
   }
 
   async function resolveFlatTexture(zip, id) {
@@ -336,9 +402,24 @@
       var name = nameFor(id, kind, lang);
       var ns = id.slice(0, id.indexOf(":")), p = id.slice(id.indexOf(":") + 1);
 
-      // GeckoLib / custom entity-rendered item
+      // GeckoLib / custom entity-rendered model
       var idef = await readItemDisplay(zip, ns, p);
-      if (isBuiltinEntity(idef)) {
+      var idefNew = await readItemDef(zip, ns, p);
+
+      // Chest-style special models (minecraft:chest)
+      var chestTex = chestSpecial(idefNew);
+      if (chestTex) {
+        var cpath = chestTexturePath(chestTex);
+        if (zip.has(cpath)) {
+          await ensureTex(cpath);
+          return {
+            id: id, name: name, kind: kind, render: "model", texture: cpath,
+            model: { elements: chestElements(cpath), tex: { all: cpath } }
+          };
+        }
+      }
+
+      if (isEntityRendered(idefNew, idef)) {
         var gpath = pickGeoPath(geoFiles, ns, p);
         if (gpath) {
           var geo = await loadGeo(zip, gpath, geoCache);
