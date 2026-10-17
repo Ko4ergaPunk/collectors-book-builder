@@ -69,6 +69,17 @@
       south: v.south || v.all, east: v.east || v.all, west: v.west || v.all
     });
   }
+  var ALL_FACES = ["down", "up", "north", "south", "east", "west"];
+  function faceSet(tex) {
+    var faces = {};
+    ALL_FACES.forEach(function (f) { faces[f] = tex; });
+    return faces;
+  }
+  function el(from, to, faceTex) {
+    var faces = {};
+    for (var f in faceTex) faces[f] = { texture: faceTex[f] };
+    return { from: from, to: to, faces: faces };
+  }
   function crossElements(tex) {
     if (!tex) tex = "#cross";
     return [
@@ -122,6 +133,69 @@
     "block/tinted_cross": { textures: { particle: "#cross" }, elements: crossElements("#cross") },
     "block/template_potted_flower": { textures: { particle: "#dirt" }, elements: [cubeEl({ all: "#dirt" })] }
   };
+
+  var SIDE = { down: "#bottom", up: "#top", north: "#side", south: "#side", west: "#side", east: "#side" };
+  VANILLA_MODELS["block/slab"] = { textures: { particle: "#side" }, elements: [el([0, 0, 0], [16, 8, 16], SIDE)] };
+  VANILLA_MODELS["block/slab_top"] = { textures: { particle: "#side" }, elements: [el([0, 8, 0], [16, 16, 16], SIDE)] };
+  VANILLA_MODELS["block/stairs"] = { textures: { particle: "#side" }, elements: [
+    el([0, 0, 0], [16, 8, 16], SIDE),
+    el([8, 8, 0], [16, 16, 16], { up: "#top", north: "#side", south: "#side", west: "#side", east: "#side" })
+  ] };
+  VANILLA_MODELS["block/inner_stairs"] = { textures: { particle: "#side" }, elements: [
+    el([0, 0, 0], [16, 8, 16], SIDE),
+    el([8, 8, 0], [16, 16, 16], { up: "#top", north: "#side", south: "#side", west: "#side", east: "#side" }),
+    el([0, 8, 8], [8, 16, 16], { up: "#top", north: "#side", south: "#side", west: "#side" })
+  ] };
+  VANILLA_MODELS["block/outer_stairs"] = { textures: { particle: "#side" }, elements: [
+    el([0, 0, 0], [16, 8, 16], SIDE),
+    el([8, 8, 8], [16, 16, 16], { up: "#top", north: "#side", south: "#side", west: "#side", east: "#side" })
+  ] };
+
+  VANILLA_MODELS["block/fence_post"] = { textures: { particle: "#texture" }, elements: [el([6, 0, 6], [10, 16, 10], faceSet("#texture"))] };
+  VANILLA_MODELS["block/fence_side"] = { textures: { particle: "#texture" }, elements: [
+    el([7, 12, 0], [9, 15, 9], faceSet("#texture")),
+    el([7, 6, 0], [9, 9, 9], faceSet("#texture"))
+  ] };
+  VANILLA_MODELS["block/fence_inventory"] = { textures: { particle: "#texture" }, elements: [
+    el([6, 0, 0], [10, 16, 4], faceSet("#texture")),
+    el([6, 0, 12], [10, 16, 16], faceSet("#texture")),
+    el([7, 12, 0], [9, 15, 16], { down: "#texture", up: "#texture", west: "#texture", east: "#texture" }),
+    el([7, 6, 0], [9, 9, 16], { down: "#texture", up: "#texture", west: "#texture", east: "#texture" })
+  ] };
+  VANILLA_MODELS["block/template_fence_gate"] = { textures: { particle: "#texture" }, elements: [
+    el([0, 5, 7], [2, 16, 9], faceSet("#texture")),
+    el([14, 5, 7], [16, 16, 9], faceSet("#texture")),
+    el([6, 6, 7], [8, 15, 9], faceSet("#texture")),
+    el([8, 6, 7], [10, 15, 9], faceSet("#texture")),
+    el([2, 6, 7], [6, 9, 9], faceSet("#texture")),
+    el([10, 6, 7], [14, 9, 9], faceSet("#texture")),
+    el([2, 12, 7], [6, 15, 9], faceSet("#texture")),
+    el([10, 12, 7], [14, 15, 9], faceSet("#texture"))
+  ] };
+
+  VANILLA_MODELS["block/button"] = { textures: { particle: "#texture" }, elements: [el([5, 0, 6], [11, 2, 10], faceSet("#texture"))] };
+  VANILLA_MODELS["block/button_inventory"] = { textures: { particle: "#texture" }, elements: [el([5, 6, 6], [11, 10, 10], faceSet("#texture"))] };
+  VANILLA_MODELS["block/button_pressed"] = { textures: { particle: "#texture" }, elements: [el([5, 0, 6], [11, 1.02, 10], faceSet("#texture"))] };
+  VANILLA_MODELS["block/pressure_plate_up"] = { textures: { particle: "#texture" }, elements: [el([1, 0, 1], [15, 1, 15], faceSet("#texture"))] };
+  VANILLA_MODELS["block/pressure_plate_down"] = { textures: { particle: "#texture" }, elements: [el([1, 0, 1], [15, 0.5, 15], faceSet("#texture"))] };
+
+  VANILLA_MODELS["block/wall_inventory"] = { textures: { particle: "#wall" }, elements: [
+    el([4, 0, 4], [12, 16, 12], faceSet("#wall")),
+    el([5, 0, 0], [11, 13, 16], faceSet("#wall"))
+  ] };
+  VANILLA_MODELS["block/template_wall_post"] = { textures: { particle: "#wall" }, elements: [el([4, 0, 4], [12, 16, 12], faceSet("#wall"))] };
+  VANILLA_MODELS["block/template_wall_side"] = { textures: { particle: "#wall" }, elements: [el([5, 0, 0], [11, 14, 8], faceSet("#wall"))] };
+  VANILLA_MODELS["block/template_wall_side_tall"] = { textures: { particle: "#wall" }, elements: [el([5, 0, 0], [11, 16, 8], faceSet("#wall"))] };
+
+  VANILLA_MODELS["block/lever"] = { textures: { particle: "#base", base: "minecraft:block/cobblestone", lever: "minecraft:block/lever" }, elements: [
+    el([5, -0.02, 4], [11, 2.98, 12], faceSet("#base")),
+    { from: [7, 1, 7], to: [9, 11, 9], rotation: { origin: [8, 1, 8], axis: "x", angle: -45 }, faces: { down: { texture: "#lever" }, up: { texture: "#lever" }, north: { texture: "#lever" }, south: { texture: "#lever" }, east: { texture: "#lever" }, west: { texture: "#lever" } } }
+  ] };
+  VANILLA_MODELS["block/lever_on"] = { textures: { particle: "#base", base: "minecraft:block/cobblestone", lever: "minecraft:block/lever" }, elements: [
+    el([5, -0.02, 4], [11, 2.98, 12], faceSet("#base")),
+    { from: [7, 1, 7], to: [9, 11, 9], rotation: { origin: [8, 1, 8], axis: "x", angle: 45 }, faces: { down: { texture: "#lever" }, up: { texture: "#lever" }, north: { texture: "#lever" }, south: { texture: "#lever" }, east: { texture: "#lever" }, west: { texture: "#lever" } } }
+  ] };
+
   // sign templates all map to a simple board
   [
     "template_sign_rot_0", "template_sign_rot_1", "template_sign_rot_2", "template_sign_rot_3",

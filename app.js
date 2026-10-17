@@ -37,7 +37,7 @@
         entries.set(it.id, {
           id: it.id, name: it.name, source: m.key,
           kind: it.kind, cat: it.kind === "block" ? 2 : 1,
-          tex: it.texture ? modTexUrls[it.texture] || null : null,
+          tex: it.texture ? (modTexUrls[it.texture] || vanillaTextureUrl(it.texture)) : null,
           render: it.render || (it.kind === "item" ? "flat" : "model"),
           model: it.model || null,
           geo: it.geo || null
@@ -49,6 +49,10 @@
   /* ---------- texture images ---------- */
   var imageCache = {};
   function getImage(path) { var v = imageCache[path]; return (v && v !== "missing") ? v : null; }
+  function vanillaTextureUrl(path) {
+    var map = window.VANILLA_TEXTURES;
+    return map && path ? map[path] || null : null;
+  }
   function modTexturePaths() {
     var paths = {};
     MODS.forEach(function (m) {
@@ -66,7 +70,7 @@
     var paths = modTexturePaths();
     return Promise.all(paths.map(function (p) {
       if (imageCache[p] !== undefined) return null;
-      var url = modTexUrls[p];
+      var url = modTexUrls[p] || vanillaTextureUrl(p);
       if (!url) { imageCache[p] = "missing"; return null; }
       return new Promise(function (res) {
         var img = new Image();

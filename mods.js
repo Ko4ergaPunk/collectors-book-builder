@@ -65,6 +65,7 @@
 
   /* ---------------- model resolution ---------------- */
   function normalizeRef(r) { return r ? (r.indexOf(":") >= 0 ? r : "minecraft:" + r) : null; }
+  function isVanillaRef(r) { return !!r && (r.indexOf(":") < 0 || r.slice(0, r.indexOf(":")) === "minecraft"); }
   function texPathFull(ref) { return BR.texPath(ref); }
 
   function pickModelFromItemDef(j) {
@@ -115,7 +116,9 @@
     var tex = {};
     Object.keys(merged).forEach(function (k) {
       var r = resolveVar(merged[k], 0);
-      if (r) { var path = texPathFull(r); if (zip.has(path)) tex[k] = path; }
+      if (!r) return;
+      var path = texPathFull(normalizeRef(r));
+      if (zip.has(path) || isVanillaRef(r)) tex[k] = path;
     });
 
     if (elements) {
@@ -124,7 +127,8 @@
         if (!el.faces) return;
         for (var f in el.faces) {
           var ft = el.faces[f].texture, r2 = ft ? resolveVar(ft, 0) : null;
-          el.faces[f].texture = (r2 && zip.has(texPathFull(r2))) ? texPathFull(r2) : null;
+          var p2 = r2 ? texPathFull(normalizeRef(r2)) : null;
+          el.faces[f].texture = (p2 && (zip.has(p2) || isVanillaRef(r2))) ? p2 : null;
         }
       });
       return { elements: els, tex: tex };
@@ -160,6 +164,16 @@
   }
   async function resolveBlockDescriptor(zip, id) {
     var ns = id.slice(0, id.indexOf(":")), p = id.slice(id.indexOf(":") + 1);
+    var idef = "assets/" + ns + "/items/" + p + ".json";
+    if (zip.has(idef)) {
+      try {
+        var iref = pickModelFromItemDef(JSON.parse(await zip.text(idef)));
+        if (iref) {
+          var idesc = await resolveModel(zip, iref);
+          if (idesc && (idesc.elements || Object.keys(idesc.tex || {}).length)) return idesc;
+        }
+      } catch (e) {}
+    }
     var ref = await resolveBlockModelRef(zip, ns, p);
     return resolveModel(zip, ref);
   }
@@ -259,25 +273,18 @@
     return null;
   }
 
-  /* ---------------- chest / special entity models ---------------- */
-  function chestSpecial(itemsDef) {
-    var m = itemsDef && itemsDef.model;
-    if (!m) return null;
-    if (m.type === "minecraft:select") m = (m.cases && m.cases[0] && m.cases[0].model) || m.fallback;
-    if (m && m.type === "minecraft:special") {
-      var inner = m.model;
-      if (inner && inner.type === "minecraft:chest") return inner.texture || "minecraft:normal";
-    }
-    return null;
-  }
-  function chestTexturePath(ref) {
+  /* ---------------- vanilla "special" (code-rendered) entity models ----------------
+     Mods reuse vanilla special renderer types (e.g. minecraft:chest) and only swap
+     the texture. So we ship the vanilla geometry once per type here; any mod using
+     the same type is then supported automatically, with its own texture. */
+  function entityTexturePath(ref, sub) {
     var i = ref.indexOf(":");
     var ns = i < 0 ? "minecraft" : ref.slice(0, i), p = i < 0 ? ref : ref.slice(i + 1);
-    return "assets/" + ns + "/textures/entity/chest/" + p + ".png";
+    return "assets/" + ns + "/textures/entity/" + sub + "/" + p + ".png";
   }
-  // Build a vanilla-style chest model (ChestModel single body) as block elements.
-  // Chest textures use a 64x64 layout; render.js UVs are in a 16-unit space.
-  function chestBox(tu, tv, from, to, tex) {
+  // Vanilla box UV unwrap (same convention as block-model face uvs).
+  // Entity textures use a 64x64 layout; render.js UVs are in a 16-unit space.
+  function boxUV(tu, tv, from, to, tex) {
     var w = to[0] - from[0], h = to[1] - from[1], d = to[2] - from[2];
     var s = 16 / 64;
     function R(u0, v0, u1, v1) { return [u0 * s, v0 * s, u1 * s, v1 * s]; }
@@ -293,12 +300,35 @@
       }
     };
   }
-  function chestElements(tex) {
-    return [
-      chestBox(0, 19, [1, 0, 1], [15, 10, 15], tex),
-      chestBox(0, 0, [1, 9, 1], [15, 14, 15], tex),
-      chestBox(0, 0, [7, 7, 15], [9, 11, 16], tex)
-    ];
+  var SPECIAL_MODELS = {
+    // vanilla ChestModel (single body): bottom, lid, latch
+    "minecraft:chest": {
+      texture: function (zip, m) { return entityTexturePath(m.texture || "minecraft:normal", "chest"); },
+      build: function (tex) {
+        return [
+          boxUV(0, 19, [1, 0, 1], [15, 10, 15], tex),
+          boxUV(0, 0, [1, 9, 1], [15, 14, 15], tex),
+          boxUV(0, 0, [7, 7, 15], [9, 11, 16], tex)
+        ];
+      }
+    },
+    // vanilla ShulkerBoxModel: base, lid (head part hidden for the block form)
+    "minecraft:shulker_box": {
+      texture: function (zip, m) { return entityTexturePath(m.texture || "minecraft:shulker", "shulker"); },
+      build: function (tex) {
+        return [
+          boxUV(0, 28, [-8, 16, -8], [8, 24, 8], tex),
+          boxUV(0, 0, [-8, 8, -8], [8, 20, 8], tex)
+        ];
+      }
+    }
+  };
+  function specialModel(itemsDef) {
+    var m = itemsDef && itemsDef.model;
+    if (!m) return null;
+    if (m.type === "minecraft:select") m = (m.cases && m.cases[0] && m.cases[0].model) || m.fallback;
+    if (m && m.type === "minecraft:special" && m.model && m.model.type) return m.model;
+    return null;
   }
 
   async function resolveFlatTexture(zip, id) {
@@ -406,15 +436,16 @@
       var idef = await readItemDisplay(zip, ns, p);
       var idefNew = await readItemDef(zip, ns, p);
 
-      // Chest-style special models (minecraft:chest)
-      var chestTex = chestSpecial(idefNew);
-      if (chestTex) {
-        var cpath = chestTexturePath(chestTex);
-        if (zip.has(cpath)) {
-          await ensureTex(cpath);
+      // Vanilla special models (chest, shulker box, ...) rendered by a known vanilla renderer
+      var special = specialModel(idefNew);
+      var spec = special && SPECIAL_MODELS[special.type];
+      if (spec) {
+        var spath = spec.texture(zip, special);
+        if (spath && zip.has(spath)) {
+          await ensureTex(spath);
           return {
-            id: id, name: name, kind: kind, render: "model", texture: cpath,
-            model: { elements: chestElements(cpath), tex: { all: cpath } }
+            id: id, name: name, kind: kind, render: "model", texture: spath,
+            model: { elements: spec.build(spath), tex: { all: spath } }
           };
         }
       }
